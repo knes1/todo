@@ -36,6 +36,11 @@
 
 <!-- End Document
   –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+<#if _queryCount?has_content>
+    <div>
+        Query Count: ${_queryCount}
+    </div>
+</#if>
 </body>
 </html>
 </#macro>
