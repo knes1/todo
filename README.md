@@ -1,4 +1,4 @@
-# Minimal Spring Boot Todo List Application
+# Logging query counts per request in a simple Spring Boot Todo List Application
 
 This is a minimal Spring Boot Todo List application. I've created this app as a testing ground for an idea on how
 to log number of SQL queries Hibernate executes during rendering of a view (page).
