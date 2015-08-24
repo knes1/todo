@@ -19,3 +19,5 @@ build
 *.ipr
 *.iws
 bin/
+elk
+.sincedb
