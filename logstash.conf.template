@@ -2,7 +2,7 @@ input {
   file {
     type => "java"
     # Logstash insists on absolute paths...
-    path => "/Users/knesek/git/todo/application.log"
+    path => "{{app_path}}/application.log"
     codec => multiline {
       pattern => "^%{YEAR}-%{MONTHNUM}-%{MONTHDAY} %{TIME}.*"
       negate => "true"

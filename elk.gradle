@@ -65,12 +65,30 @@ task installElk {
         println "To run Kibana execute:\n${elkDir}/${kibana}/bin/kibana${kibanaExe}\n"
         println "To run Logstash execute:\n${elkDir}/${logstash}/bin/logstash"
         println "========================================================================="
-
     }
-
 }
 
-task runElk(dependsOn: installElk) {
+task logstashConf << {
+    if (! new File("logstash.conf").exists()) {
+        println "Creating logstash.conf from logstash.conf.template and replacing path(s) " +
+                "to ${projectDir} where needed since logstash insists on absoulte paths in configs..."
+        copy {
+            from (projectDir)
+            into (projectDir)
+            include ("logstash.conf.template")
+            rename { String fileName ->
+                fileName.replace("logstash.conf.template", "logstash.conf")
+            }
+            filter {
+                it.replaceAll("\\{\\{app_path\\}\\}", "${projectDir}")
+            }
+        }
+    } else {
+        println "Skipping creating logstash.conf from logstash.conf.template since it already exists."
+    }
+}
+
+task runElk(dependsOn: [installElk, logstashConf]) {
     doLast {
         println 'Warning: Run ELK task is experimental due to limited ability to control external processes from gradle.'
         println 'Once all ELK processes are started, in order to shut them down you press ENTER. Exiting in any other' +
@@ -79,7 +97,9 @@ task runElk(dependsOn: installElk) {
         def elasticCommand = "${installElk.ext.elkDir}/${installElk.ext.elasticsearch}/bin/elasticsearch"
         def kibanaCommand = "${installElk.ext.elkDir}/${installElk.ext.kibana}/bin/kibana${installElk.ext.kibanaExe}"
         def logstashCommand = "${installElk.ext.elkDir}/${installElk.ext.logstash}/bin/logstash"
+
         def processes = []
+
         processes << execInBackground(elasticCommand, { output -> output.contains("started") })
         println "== Elasticsearch Started =="
         processes << execInBackground(kibanaCommand, { output -> output.contains("Listening on 0.0.0.0:5601") })
