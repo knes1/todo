@@ -1,5 +1,3 @@
-import org.gradle.internal.os.OperatingSystem;
-
 buildscript {
     repositories {
         mavenCentral()
@@ -13,7 +11,8 @@ buildscript {
 apply plugin: 'idea'
 apply plugin: 'java'
 apply plugin: 'spring-boot'
-apply plugin: 'de.undercouch.download'
+
+apply from: 'elk.gradle'
 
 jar {
     baseName = 'todo'
@@ -40,123 +39,8 @@ dependencies {
     testCompile("com.jayway.restassured:rest-assured:2.4.0")
 }
 
-
 task wrapper(type: Wrapper) {
     gradleVersion = '2.2.1'
-}
-
-task installElk {
-
-    ext {
-        elasticsearchVer = '1.7.1'
-        kibanaVer = '4.1.1';
-        logstashVer = '1.5.3';
-        kibanaOs = 'darwin-x64'
-        kibanaExt = '.tar.gz'
-
-        elasticsearch = "elasticsearch-${elasticsearchVer}"
-        kibana =  "kibana-${kibanaVer}-${kibanaOs}"
-        logstash = "logstash-${logstashVer}"
-
-        elkDir = file("${projectDir}/elk")
-    }
-
-    if (OperatingSystem.current().isWindows()) {
-        kibanaOs = 'windows'
-        kibanaExt = '.zip'
-    } else if (OperatingSystem.current().isLinux()) {
-        def arch = System.getProperty('os.arch')
-        if (arch.contains('x86') || arch.contains('32')) {
-            kibanaOs = 'linux-x86'
-        } else {
-            kibanaOs = 'linux-x64'
-        }
-    }
-
-    doLast {
-        elkDir.mkdir()
-        download {
-            src ([downloadUrl("elasticsearch", elasticsearchVer),
-                  downloadUrl("kibana", kibanaVer, kibanaExt, kibanaOs),
-                  downloadUrl("logstash", logstashVer)])
-            overwrite false
-            dest elkDir
-        }
-        def unzipTargets = []
-        if (! new File("${elkDir}/${elasticsearch}").exists()) {
-            unzipTargets << archiveTree("${elkDir}/${elasticsearch}.zip")
-        }
-        if (! new File("${elkDir}/${kibana}").exists()) {
-            unzipTargets << archiveTree("${elkDir}/${kibana}${kibanaExt}")
-        }
-        if (! new File("${elkDir}/${logstash}").exists()) {
-            unzipTargets << archiveTree("${elkDir}/${logstash}.zip")
-        }
-
-        copy {
-            from (unzipTargets)
-            into "${elkDir}"
-        }
-
-        println "\nELK installed in ${elkDir}"
-        println "========================================================================="
-        println "To run Elasticsearch execute:\n${elkDir}/${elasticsearch}/bin/elasticsearch\n"
-        println "To run Kibana execute:\n${elkDir}/${kibana}/bin/kibana\n"
-        println "To run Logstash execute:\n${elkDir}/${logstash}/bin/logstash"
-        println "========================================================================="
-
-    }
-
-}
-
-task runElk(dependsOn: installElk) {
-    doLast {
-        def elasticCommand = "${installElk.ext.elkDir}/${installElk.ext.elasticsearch}/bin/elasticsearch"
-        def kibanaCommand = "${installElk.ext.elkDir}/${installElk.ext.kibana}/bin/kibana"
-        def logstashCommand = "${installElk.ext.elkDir}/${installElk.ext.logstash}/bin/logstash"
-        def processes = []
-        processes << execInBackground(elasticCommand, { output -> output.contains("started") })
-        println "== Elasticsearch Started =="
-        processes << execInBackground(kibanaCommand, { output -> output.contains("Listening on 0.0.0.0:5601") })
-        println "== Kibana Started =="
-        processes << execInBackground(logstashCommand)
-        println "== Logstash Started =="
-
-        println 'Press ENTER to stop ELK...'
-        System.console().readLine()
-        processes.each {
-            it.destroy()
-        }
-    }
-}
-
-def Process execInBackground(String command, Closure<Boolean> waitFor = { true }) {
-    def process = command.execute()
-    process.outputStream.close()
-    process.errorStream.close()
-    def reader = process.inputStream.newReader()
-    for(def line = reader.readLine(); line != null && !waitFor(line); line = reader.readLine()) {
-        println line
-    }
-    process.inputStream.close()
-    return process;
-}
-
-def downloadUrl(name, ver, String extension = ".zip", String architecture = "") {
-    def url = "https://download.elastic.co/${name}/${name}/${name}-${ver}"
-    if (architecture != "") {
-        url += "-" + architecture
-    }
-    url += extension
-    return url
-}
-
-def archiveTree(String filename) {
-    if (filename.endsWith(".zip")) {
-        return zipTree(filename)
-    } else if (filename.endsWith(".tar.gz")) {
-        return tarTree(filename)
-    }
 }
 
 

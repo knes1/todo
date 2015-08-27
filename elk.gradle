@@ -1,0 +1,130 @@
+import org.gradle.internal.os.OperatingSystem
+
+apply plugin: 'de.undercouch.download'
+
+
+task installElk {
+
+    ext {
+        elasticDownloadBaseUrl = "https://download.elastic.co"
+        elasticsearchVer = '1.7.1'
+        kibanaVer = '4.1.1';
+        logstashVer = '1.5.3';
+        kibanaOs = 'darwin-x64'
+        kibanaExt = '.tar.gz'
+        kibanaExe = ''
+
+        elasticsearch = "elasticsearch-${elasticsearchVer}"
+        kibana =  "kibana-${kibanaVer}-${kibanaOs}"
+        logstash = "logstash-${logstashVer}"
+
+        elkDir = file("${projectDir}/elk")
+    }
+
+    if (OperatingSystem.current().isWindows()) {
+        kibanaOs = 'windows'
+        kibanaExt = '.zip'
+        kibanaExe = '.exe'
+    } else if (OperatingSystem.current().isLinux()) {
+        def arch = System.getProperty('os.arch')
+        if (arch.contains('x86') || arch.contains('32')) {
+            kibanaOs = 'linux-x86'
+        } else {
+            kibanaOs = 'linux-x64'
+        }
+    }
+
+    doLast {
+        elkDir.mkdir()
+        download {
+            src ([buildUrl("elasticsearch", elasticsearchVer),
+                  buildUrl("kibana", kibanaVer, kibanaExt, kibanaOs),
+                  buildUrl("logstash", logstashVer)])
+            overwrite false
+            dest elkDir
+        }
+        def unzipTargets = []
+        if (! new File("${elkDir}/${elasticsearch}").exists()) {
+            unzipTargets << archiveTree("${elkDir}/${elasticsearch}.zip")
+        }
+        if (! new File("${elkDir}/${kibana}").exists()) {
+            unzipTargets << archiveTree("${elkDir}/${kibana}${kibanaExt}")
+        }
+        if (! new File("${elkDir}/${logstash}").exists()) {
+            unzipTargets << archiveTree("${elkDir}/${logstash}.zip")
+        }
+
+        copy {
+            from (unzipTargets)
+            into "${elkDir}"
+        }
+
+        println "\nELK installed in ${elkDir}"
+        println "========================================================================="
+        println "To run Elasticsearch execute:\n${elkDir}/${elasticsearch}/bin/elasticsearch\n"
+        println "To run Kibana execute:\n${elkDir}/${kibana}/bin/kibana${kibanaExe}\n"
+        println "To run Logstash execute:\n${elkDir}/${logstash}/bin/logstash"
+        println "========================================================================="
+
+    }
+
+}
+
+task runElk(dependsOn: installElk) {
+    doLast {
+        println 'Warning: Run ELK task is experimental due to limited ability to control external processes from gradle.'
+        println 'Once all ELK processes are started, in order to shut them down you press ENTER. Exiting in any other' +
+                'way will leave elasticsearch, kibana and logstash process running in the background.'
+
+        def elasticCommand = "${installElk.ext.elkDir}/${installElk.ext.elasticsearch}/bin/elasticsearch"
+        def kibanaCommand = "${installElk.ext.elkDir}/${installElk.ext.kibana}/bin/kibana${installElk.ext.kibanaExe}"
+        def logstashCommand = "${installElk.ext.elkDir}/${installElk.ext.logstash}/bin/logstash"
+        def processes = []
+        processes << execInBackground(elasticCommand, { output -> output.contains("started") })
+        println "== Elasticsearch Started =="
+        processes << execInBackground(kibanaCommand, { output -> output.contains("Listening on 0.0.0.0:5601") })
+        println "== Kibana Started =="
+        processes << execInBackground(logstashCommand)
+        println "== Logstash Started =="
+
+        println 'Press ENTER to stop ELK...'
+        System.console().readLine()
+        processes.each {
+            it.destroy()
+        }
+    }
+}
+
+task deleteElk(type: Delete) {
+    delete 'elk'
+}
+
+def Process execInBackground(String command, Closure<Boolean> waitFor = { true }) {
+    def process = command.execute()
+    process.outputStream.close()
+    process.errorStream.close()
+    def reader = process.inputStream.newReader()
+    for(def line = reader.readLine(); line != null && !waitFor(line); line = reader.readLine()) {
+        println line
+    }
+    process.inputStream.close()
+    return process;
+}
+
+/* Helper function for composing elastic.co download url's */
+def buildUrl(name, ver, String extension = ".zip", String architecture = "") {
+    def url = "${installElk.ext.elasticDownloadBaseUrl}/${name}/${name}/${name}-${ver}"
+    if (architecture != "") {
+        url += "-" + architecture
+    }
+    url += extension
+    return url
+}
+
+def archiveTree(String filename) {
+    if (filename.endsWith(".zip")) {
+        return zipTree(filename)
+    } else if (filename.endsWith(".tar.gz")) {
+        return tarTree(filename)
+    }
+}
