@@ -4,7 +4,7 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import java.util.Date;
+import java.time.LocalDateTime;
 
 /**
  * @author knesek
@@ -17,12 +17,12 @@ public class Todo {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	private Date dateCreated;
+	private LocalDateTime dateCreated;
 	private String description;
 	private boolean completed;
 
 	public Todo() {
-		dateCreated = new Date();
+		dateCreated = LocalDateTime.now();
 		completed = false;
 	}
 
@@ -39,11 +39,11 @@ public class Todo {
 		this.completed = completed;
 	}
 
-	public Date getDateCreated() {
+	public LocalDateTime getDateCreated() {
 		return dateCreated;
 	}
 
-	public void setDateCreated(Date dateCreated) {
+	public void setDateCreated(LocalDateTime dateCreated) {
 		this.dateCreated = dateCreated;
 	}
 

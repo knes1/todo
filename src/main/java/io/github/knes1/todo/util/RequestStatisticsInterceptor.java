@@ -32,7 +32,9 @@ public class RequestStatisticsInterceptor implements AsyncHandlerInterceptor {
 	@Override
 	public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
 		Long queryCount = statisticsInterceptor.getQueryCount();
-		modelAndView.addObject("_queryCount", queryCount);
+		if (modelAndView != null) {
+			modelAndView.addObject("_queryCount", queryCount);
+		}
 	}
 
 	@Override

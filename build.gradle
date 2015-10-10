@@ -3,10 +3,11 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath("org.springframework.boot:spring-boot-gradle-plugin:1.2.5.RELEASE")
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:1.2.6.RELEASE")
+        classpath("io.spring.gradle:dependency-management-plugin:0.5.3.RELEASE")
     }
 }
-
+apply plugin: "io.spring.dependency-management"
 apply plugin: 'idea'
 apply plugin: 'java'
 apply plugin: 'spring-boot'
@@ -16,8 +17,18 @@ jar {
     version =  '0.1.0'
 }
 
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
 repositories {
     mavenCentral()
+}
+
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.data:spring-data-releasetrain:Fowler-RELEASE"
+    }
 }
 
 dependencies {
@@ -38,7 +49,7 @@ dependencies {
 
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '2.2.1'
+    gradleVersion = '2.7'
 }
 
 
